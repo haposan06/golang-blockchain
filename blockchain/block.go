@@ -2,48 +2,57 @@ package blockchain
 
 import (
 	"bytes"
-	"crypto/sha256"
+	"encoding/gob"
+	"log"
 )
 
-type BlockChain struct {
-	Blocks []*Block
-}
-
 type Block struct {
-	Hash 		[]byte
-	Data		[]byte
-	PrevHash	[]byte
-	Nonce		int
-}
-
-func (b *Block) DeriveHash(){
-	info := bytes.Join([][]byte{b.Data, b.PrevHash}, []byte{})
-	hash := sha256.Sum256(info)
-	b.Hash = hash[:]
+	Hash     []byte
+	Data     []byte
+	PrevHash []byte
+	Nonce    int
 }
 
 func CreateBlock(data string, prevHash []byte) *Block {
 	block := &Block{[]byte{}, []byte(data), prevHash, 0}
-	//block.DeriveHash()
-	pow:= NewProof(block)
+	pow := NewProof(block)
 	nonce, hash := pow.Run()
 
 	block.Hash = hash[:]
-	block.Nonce = nonce;
+	block.Nonce = nonce
 
 	return block
 }
 
-func (chain *BlockChain) AddBlock(data string){
-	lastBlock := chain.Blocks[len(chain.Blocks) - 1]
-	addedBlock := CreateBlock(data, lastBlock.Hash)
-	chain.Blocks = append(chain.Blocks, addedBlock)
-}
-
-func Genesis() *Block{
+func Genesis() *Block {
 	return CreateBlock("Genesis", []byte{})
 }
 
-func InitBlockChain() *BlockChain{
-	return &BlockChain{[]*Block{Genesis()}}
+func (b *Block) Serialize() []byte {
+	var res bytes.Buffer
+	encoder := gob.NewEncoder(&res)
+
+	err := encoder.Encode(b)
+
+	Handle(err)
+
+	return res.Bytes()
+}
+
+func Deserialize(data []byte) *Block {
+	var block Block
+
+	decoder := gob.NewDecoder(bytes.NewReader(data))
+
+	err := decoder.Decode(&block)
+
+	Handle(err)
+
+	return &block
+}
+
+func Handle(err error) {
+	if err != nil {
+		log.Panic(err)
+	}
 }
